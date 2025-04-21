@@ -15,6 +15,7 @@ import { UserProfileModel } from "../../model/userProfile";
 import { UserGroupsModel } from "../../model/userGroups";
 import { FollowModel } from "../../model/followModel";
 import UserController from "./UserController";
+import { verifyFirebaseToken } from "../../common/middleware/verifyFirebaseToken";
 
 const userService = new UserService(
     new UserRepository(UserModel),
@@ -29,7 +30,7 @@ userRouter.post("/register", validateRegistration, userController.register);
 
 userRouter.post("/login", validateLogin, userController.login);
 
-userRouter.post("/google-auth", userController.googleAuth);
+userRouter.post("/google-auth", verifyFirebaseToken, userController.googleAuth);
 
 // userRouter.get("/:userId", authenticate, userController.findUserById);
 

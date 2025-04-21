@@ -46,18 +46,18 @@ export default class UserController {
 
     googleAuth = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { idToken, name } = req.body as GoogleAuthRequest;
-
-            if (!idToken) {
-                return res.status(400).json({ error: "ID token is required" });
-            }
+            const { name } = req.body as GoogleAuthRequest;
+            const decodedToken = req.firebaseUser;
+            console.log("Firebase User:", decodedToken);
 
             const userResponse = await this.userService.authenticateWithGoogle(
-                idToken,
+                decodedToken,
                 name,
             );
+            console.log("User Response 2:", userResponse);
             return res.status(200).json(userResponse);
         } catch (error) {
+            console.error("Error in Google Auth:", error);
             next(error);
         }
     };
