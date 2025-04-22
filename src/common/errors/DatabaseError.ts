@@ -14,7 +14,7 @@ export class DatabaseError extends ServerError {
         super(message, statusCode, errorCode, details);
     }
 
-    static handleError(error: unknown): DatabaseError {
+    static handleMongoDBError(error: unknown): DatabaseError {
         if (error instanceof MongooseError.ValidationError) {
             return new DatabaseError(
                 "Validation failed",
@@ -58,6 +58,11 @@ export class DatabaseError extends ServerError {
             );
         }
 
-        return new DatabaseError("Unknown database error occurred");
+        return new DatabaseError(
+            "Unknown database error occurred",
+            "UNKNOWN_DATABASE_ERROR",
+            HttpStatusCode.INTERNAL_SERVER_ERROR,
+            error,
+        );
     }
 }

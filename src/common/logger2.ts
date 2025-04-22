@@ -2,6 +2,7 @@ import winston, { format } from "winston";
 import { Request, Response, NextFunction } from "express";
 import morgan from "morgan";
 import { LoggingWinston } from "@google-cloud/logging-winston";
+import { v4 as uuidv4 } from "uuid";
 
 const { combine, timestamp, json, prettyPrint, errors } = winston.format;
 const loggingWinston = new LoggingWinston();
@@ -18,24 +19,6 @@ interface LogContext {
     path?: string;
     method?: string;
 }
-
-const logger = winston.createLogger({
-    level: "info",
-    format: combine(
-        errors({ stack: true }),
-        timestamp(),
-        json(),
-        prettyPrint(),
-    ),
-    transports: [new winston.transports.Console()],
-    defaultMeta: { service: "train-api" },
-});
-
-// const requestLog = { method: "GET", isAuthorized: false };
-// const childLogger = logger.child(requestLog);
-
-// childLogger.info("This is a child logger message");
-// childLogger.error("Error message", new Error("Test error"));
 
 const logLevels = {
     error: 0,
@@ -71,11 +54,19 @@ const fileFormat = format.combine(
     format.json(),
 );
 
+const googleCloudLoggingFormat = format.combine(
+    format.timestamp(),
+    format.json(),
+);
+
 export class Logger {
     private static instance: Logger;
     private logger: winston.Logger;
+    private loggingWinston: LoggingWinston;
 
     private constructor() {
+        this.loggingWinston = new LoggingWinston();
+
         this.logger = winston.createLogger({
             levels: logLevels,
             defaultMeta: { service: "train-api" },
@@ -93,6 +84,7 @@ export class Logger {
                     filename: "logs/combined.log",
                     format: fileFormat,
                 }),
+                this.loggingWinston,
             ],
         });
     }
@@ -124,6 +116,11 @@ export class Logger {
         this.logger.debug(message, meta);
     }
 
+    public assignRequestId(req: Request, res: Response, next: NextFunction) {
+        req["requestId"] = req.headers["x-request-id"] || uuidv4();
+        next();
+    }
+
     public logRequest = (req: Request, res: Response, next: NextFunction) => {
         // TODO: Remove this method only use morgan
         // In production, filter or mask sensitive data
@@ -143,6 +140,7 @@ export class Logger {
                 {
                     statusCode: res.statusCode,
                     contentLength: res.get("Content-Length"),
+                    requestId: req["requestId"],
                 },
             );
         });

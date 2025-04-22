@@ -7,7 +7,7 @@ import UserProfileDAO from "../../dao/UserProfileDAO";
 import UserGroupsDAO from "../../dao/UserGroupsDAO";
 import FollowDAO from "../../dao/FollowDAO";
 import CustomLogger from "../../common/logger";
-import { Types } from "mongoose";
+import { MongooseError, Types } from "mongoose";
 import User from "../../infrastructure/database/entity/user/User";
 
 import {
@@ -18,9 +18,17 @@ import {
 
 import mongoose from "mongoose";
 import { APIError } from "../../common/errors/APIError";
-import admin from "../../infrastructure/firebase";
+import { Logger } from "../../common/logger2";
 
 import { DecodedIdToken } from "firebase-admin/lib/auth/token-verifier";
+import { MongoServerError } from "mongodb";
+import { DatabaseError } from "../../common/errors/DatabaseError";
+import {
+    JsonWebTokenError,
+    TokenExpiredError,
+    NotBeforeError,
+} from "jsonwebtoken";
+import { AuthError } from "../../common/errors/AuthError";
 
 export interface TokenPayload {
     name: string;
@@ -32,7 +40,7 @@ export default class UserService {
     private userProfileDAO: UserProfileDAO;
     private userGroupsDAO: UserGroupsDAO;
     private followDAO: FollowDAO;
-    private logger: CustomLogger;
+    private logger: Logger;
 
     constructor(
         userRepository: UserRepository,
@@ -44,7 +52,7 @@ export default class UserService {
         this.userProfileDAO = userProfileDAO;
         this.userGroupsDAO = userGroupsDAO;
         this.followDAO = followDAO;
-        this.logger = new CustomLogger(this.constructor.name);
+        this.logger = Logger.getInstance();
     }
 
     public async registerUser(
@@ -131,10 +139,10 @@ export default class UserService {
             password,
             user.getPassword(),
         ).catch((error) => {
-            this.logger.logError(
-                `Error validating password for user ${username}`,
-                error,
-            );
+            // this.logger.logError(
+            //     `Error validating password for user ${username}`,
+            //     error,
+            // );
         });
 
         if (!validPassword) {
@@ -155,10 +163,10 @@ export default class UserService {
             payload,
             process.env.SECRET_CODE,
         ).catch((error) => {
-            this.logger.logError(
-                `Error signing JWT for user ${username}`,
-                error,
-            );
+            // this.logger.logError(
+            //     `Error signing JWT for user ${username}`,
+            //     error,
+            // );
         });
 
         // TODO: FIX THIS.
@@ -166,10 +174,10 @@ export default class UserService {
             throw new Errors.InternalServerError("Error signing JWT");
         }
 
-        this.logger.logInfo("User logged in", {
-            username,
-            userId: user.getId(),
-        });
+        // this.logger.logInfo("User logged in", {
+        //     username,
+        //     userId: user.getId(),
+        // });
 
         return this.userRepository.toResponse(user, token, userProfile.name);
     }
@@ -197,22 +205,16 @@ export default class UserService {
             // Check if user exists by username/email
             user = await this.userRepository.findOne({ username });
             if (user) {
-                this.logger.logInfo(
-                    "User found by username but not linked to Google",
-                    { username },
-                );
                 throw APIError.Conflict(
-                    "Account with this email already exists but not linked to Google",
+                    "Account with this username already exists but not linked to Google",
+                    { username },
                 );
             }
 
             // Create a new user with Google authentication
             return this.createGoogleUser(googleId, email, username, name);
         } catch (error) {
-            const err =
-                error instanceof Error ? error : new Error(String(error));
-            this.logger.logError("Error authenticating with Google", err);
-            throw err;
+            throw error;
         }
     }
 
@@ -220,21 +222,29 @@ export default class UserService {
         user: User,
         name: string,
     ): Promise<UserResponse> {
-        const userProfile = await this.userProfileDAO.findOne({
-            userId: user.getId(),
-        });
+        try {
+            const userProfile = await this.userProfileDAO.findOne({
+                userId: user.getId(),
+            });
 
-        const token = await this.generateAuthToken(
-            userProfile.name,
-            user.getId(),
-        );
+            const token = await this.generateAuthToken(
+                userProfile.name,
+                user.getId(),
+            );
 
-        this.logger.logInfo("User logged in with Google", {
-            username: user.getUsername(),
-            userId: user.getId(),
-        });
+            this.logger.info("User logged in with Google", {
+                username: user.getUsername(),
+                userId: user.getId(),
+            });
 
-        return this.userRepository.toResponse(user, token, userProfile.name);
+            return this.userRepository.toResponse(
+                user,
+                token,
+                userProfile.name,
+            );
+        } catch (error) {
+            throw DatabaseError.handleMongoDBError(error);
+        }
     }
 
     private async createGoogleUser(
@@ -289,7 +299,7 @@ export default class UserService {
             // Generate JWT token
             const token = await this.generateAuthToken(name, newUser.getId());
 
-            this.logger.logInfo("New user created with Google auth", {
+            this.logger.info("New user created with Google auth", {
                 username,
                 userId: newUser.getId(),
             });
@@ -297,7 +307,7 @@ export default class UserService {
             return this.userRepository.toResponse(newUser, token, name);
         } catch (error) {
             await session.abortTransaction();
-            throw error;
+            throw DatabaseError.handleMongoDBError(error);
         } finally {
             session.endSession();
         }
@@ -311,16 +321,12 @@ export default class UserService {
             name,
             userId,
         };
-
-        const token = await JWTUtil.sign(payload, process.env.SECRET_CODE);
-
-        if (!token) {
-            throw APIError.InternalServerError(
-                "Failed to generate JWT authentication token",
-            );
+        try {
+            return await JWTUtil.sign(payload, process.env.SECRET_CODE);
+        } catch (error) {
+            // TODO: throw internal server error if not JWT error
+            throw AuthError.handleJWTError(error);
         }
-
-        return token;
     }
 
     // public async findUserById(userId: Types.ObjectId): Promise<IUser | null> {

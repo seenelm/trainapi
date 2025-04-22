@@ -1,4 +1,5 @@
-import { ErrorResponse } from "./types";
+import { ErrorResponse, ServerResponse } from "./types";
+import { Request } from "express";
 
 export abstract class ServerError extends Error {
     constructor(
@@ -12,11 +13,25 @@ export abstract class ServerError extends Error {
         Error.captureStackTrace(this, this.constructor);
     }
 
-    public toJSON(): ErrorResponse {
+    public toErrorResponse(): ErrorResponse {
         return {
             message: this.message,
             errorCode: this.errorCode,
             details: this.details,
+        };
+    }
+
+    public toServerResponse(req: Request): ServerResponse {
+        return {
+            statusCode: this.statusCode,
+            error: {
+                message: this.message,
+                errorCode: this.errorCode,
+                details: this.details,
+                path: req.path,
+            },
+            requestId: req.headers["x-request-id"] as string,
+            userId: req.user,
         };
     }
 }

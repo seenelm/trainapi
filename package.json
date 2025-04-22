@@ -43,6 +43,7 @@
         "node-cache": "^5.1.2",
         "swagger-jsdoc": "^6.2.8",
         "swagger-ui-express": "^5.0.0",
+        "uuid": "^11.1.0",
         "winston": "^3.11.0",
         "yaml": "^2.7.1"
     },
