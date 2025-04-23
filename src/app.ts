@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Application } from "express";
 import "dotenv/config";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -24,63 +24,172 @@ import { EventResponse } from "./dto/EventResponse";
 import { AlertModel } from "./model/alertModel";
 
 import config from "./common/config";
+import Logger from "./common/logger2";
 
-const app = express();
-// const dbUri: string = config.get("MongoDB.dbConfig.host");
 const swaggerJSDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
 
-const dbUri: string = config.database.uri;
+export default class App {
+    private static instance: App;
+    public app: Application;
+    public db: MongoDB;
+    public agenda: Agenda;
+    private logger: Logger;
 
-const db = new MongoDB(dbUri);
-const agenda = new Agenda({
-    db: { address: dbUri, collection: "notificationschedular" },
-    processEvery: "30 seconds",
-});
+    private constructor() {
+        this.app = express();
+        this.db = new MongoDB(config.database.uri);
+        this.agenda = new Agenda({
+            db: { address: dbUri, collection: "notificationschedular" },
+            processEvery: "30 seconds",
+        });
+        this.logger = Logger.getInstance();
 
-const options = {
-    definition: {
-        openapi: "3.0.0",
-        info: {
-            title: "Train API",
-            version: "1.0.0",
-            description: "Train API",
-        },
-        servers: [
-            {
-                url:
-                    process.env.NODE_ENV === "production"
-                        ? "https://train-api-staging.ue.r.appspot.com/api"
-                        : "/api",
-                description:
-                    process.env.NODE_ENV === "production"
-                        ? "Production server"
-                        : "Development server",
-            },
-        ],
-        components: {
-            securitySchemes: {
-                bearerAuth: {
-                    type: "http",
-                    scheme: "bearer",
-                    bearerFormat: "JWT",
+        this.configureMiddleware();
+        this.configureSwagger();
+        this.configureRoutes();
+        this.configureErrorHandler();
+    }
+
+    public static getInstance(): App {
+        if (!App.instance) {
+            App.instance = new App();
+        }
+        return App.instance;
+    }
+
+    public async initialize(): Promise<void> {
+        try {
+            await this.db.connect();
+            this.logger.info("Database connected successfully");
+        } catch (error) {
+            this.logger.error("Failed to connect to the database", error);
+            throw error;
+        }
+    }
+
+    private configureMiddleware(): void {
+        app.use(bodyParser.json());
+        app.use(cors());
+    }
+
+    private configureRoutes(): void {
+        this.app.use("/api", userRouter);
+        this.app.use("/api/users", userProfileRouter);
+        this.app.use("/api/groups", groupRouter);
+        this.app.use("/api/events", eventRouter);
+        this.app.use("/api", searchRouter);
+        this.app.use("/api/files", fileRouter);
+        this.app.use("/api/programs", programRouter);
+        this.app.use("/api/exercise-library", exerciseLibraryRouter);
+        this.app.use("/api/media-hub", mediaHubRouter);
+    }
+
+    private configureErrorHandler(): void {
+        this.app.use(errorHandler);
+    }
+
+    private configureSwagger(): void {
+        const options = {
+            definition: {
+                openapi: "3.0.0",
+                info: {
+                    title: "Train API",
+                    version: "1.0.0",
+                    description: "Train API",
                 },
+                servers: [
+                    {
+                        url:
+                            process.env.NODE_ENV === "production"
+                                ? "https://train-api-staging.ue.r.appspot.com/api"
+                                : "/api",
+                        description:
+                            process.env.NODE_ENV === "production"
+                                ? "Production server"
+                                : "Development server",
+                    },
+                ],
+                components: {
+                    securitySchemes: {
+                        bearerAuth: {
+                            type: "http",
+                            scheme: "bearer",
+                            bearerFormat: "JWT",
+                        },
+                    },
+                },
+                security: [
+                    {
+                        bearerAuth: [],
+                    },
+                ],
             },
-        },
-        security: [
-            {
-                bearerAuth: [],
-            },
-        ],
-    },
-    apis: ["./config/*.yaml"],
-};
+            apis: ["./config/*.yaml"],
+        };
 
-const swaggerSpec = swaggerJSDoc(options);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-// Middleware
-app.use(bodyParser.json());
-app.use(cors());
+        const swaggerSpec = swaggerJSDoc(options);
+        this.app.use(
+            "/api-docs",
+            swaggerUi.serve,
+            swaggerUi.setup(swaggerSpec),
+        );
+    }
+}
+
+// const app = express();
+
+// const dbUri: string = config.database.uri;
+
+// const db = new MongoDB(dbUri);
+// const agenda = new Agenda({
+//     db: { address: dbUri, collection: "notificationschedular" },
+//     processEvery: "30 seconds",
+// });
+
+// const options = {
+//     definition: {
+//         openapi: "3.0.0",
+//         info: {
+//             title: "Train API",
+//             version: "1.0.0",
+//             description: "Train API",
+//         },
+//         servers: [
+//             {
+//                 url:
+//                     process.env.NODE_ENV === "production"
+//                         ? "https://train-api-staging.ue.r.appspot.com/api"
+//                         : "/api",
+//                 description:
+//                     process.env.NODE_ENV === "production"
+//                         ? "Production server"
+//                         : "Development server",
+//             },
+//         ],
+//         components: {
+//             securitySchemes: {
+//                 bearerAuth: {
+//                     type: "http",
+//                     scheme: "bearer",
+//                     bearerFormat: "JWT",
+//                 },
+//             },
+//         },
+//         security: [
+//             {
+//                 bearerAuth: [],
+//             },
+//         ],
+//     },
+//     apis: ["./config/*.yaml"],
+// };
+
+// const swaggerSpec = swaggerJSDoc(options);
+// app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// // Middleware
+// app.use(bodyParser.json());
+// app.use(cors());
 
 // agenda.define("send push notification", async (job) => {
 //     const { token, title, body, data } = job.attrs.data;
@@ -172,16 +281,16 @@ app.use(cors());
 //     }
 // }
 
-app.use("/api", userRouter);
-app.use("/api/users", userProfileRouter);
-app.use("/api/groups", groupRouter);
-app.use("/api/events", eventRouter);
-app.use("/api", searchRouter);
-app.use("/api/files", fileRouter);
-app.use("/api/programs", programRouter);
-app.use("/api/exercise-library", exerciseLibraryRouter);
-app.use("/api/media-hub", mediaHubRouter);
+// app.use("/api", userRouter);
+// app.use("/api/users", userProfileRouter);
+// app.use("/api/groups", groupRouter);
+// app.use("/api/events", eventRouter);
+// app.use("/api", searchRouter);
+// app.use("/api/files", fileRouter);
+// app.use("/api/programs", programRouter);
+// app.use("/api/exercise-library", exerciseLibraryRouter);
+// app.use("/api/media-hub", mediaHubRouter);
 
-app.use(errorHandler);
+// app.use(errorHandler);
 
-export { app, db };
+// export { app, db };
