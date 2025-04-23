@@ -203,11 +203,14 @@ export default class UserService {
             const username = email ?? `user_${Date.now()}`;
 
             // Check if user exists by username/email
-            user = await this.userRepository.findOne({ username });
+            user = await this.userRepository.findOne({
+                $or: [{ email: email }, { username: username }],
+            });
+
             if (user) {
                 throw APIError.Conflict(
-                    "Account with this username already exists but not linked to Google",
-                    { username },
+                    "Account with this email/username already exists but not linked to this authentication provider",
+                    { email, username },
                 );
             }
 
