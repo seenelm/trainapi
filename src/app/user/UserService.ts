@@ -3,7 +3,6 @@ import * as Errors from "../../utils/errors";
 import JWTUtil from "../../utils/JWTUtil";
 import BcryptUtil from "../../utils/BcryptUtil";
 import admin from "../../infrastructure/firebase";
-import { UserDocument } from "../../infrastructure/database/models/user/userModel";
 import UserProfileDAO from "../../dao/UserProfileDAO";
 import UserGroupsDAO from "../../dao/UserGroupsDAO";
 import FollowDAO from "../../dao/FollowDAO";
@@ -286,25 +285,4 @@ export default class UserService {
             throw err;
         }
     }
-
-    // public async findUserById(userId: Types.ObjectId): Promise<IUser | null> {
-    //     const user = await this.userRepository.findUserById(
-    //         userId,
-    //         "username isActive",
-    //     );
-
-    //     if (!user) {
-    //         throw new Errors.ResourceNotFoundError("User not found", {
-    //             userId,
-    //         });
-    //     }
-
-    //     this.logger.logInfo("Find User By Id", { user });
-
-    //     return user;
-    // }
-
-    // public async deleteUserAccount(userId: Types.ObjectId): Promise<void> {
-    //     await this.userRepository.deleteUserAccount(userId);
-    // }
 }

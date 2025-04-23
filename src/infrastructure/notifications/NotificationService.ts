@@ -1,13 +1,14 @@
+import type * as adminType from "firebase-admin";
 import admin from "../firebase";
 
 export default class NotificationService {
-    private admin: admin.app.App;
+    private admin: adminType.app.App;
 
-    constructor(admin: admin.app.App) {
+    constructor() {
         this.admin = admin;
     }
 
-    sendNotification = async (message: admin.messaging.Message) => {
+    sendNotification = async (message: adminType.messaging.Message) => {
         try {
             await this.admin.messaging().send(message);
         } catch (error) {

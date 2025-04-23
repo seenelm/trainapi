@@ -1,8 +1,9 @@
-import admin from "firebase-admin";
+var admin = require("firebase-admin");
+
+var serviceAccount = require("../../config/firebase-config.json");
 
 admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
+  credential: admin.credential.cert(serviceAccount)
 });
-console.log("✅ Firebase initialized from env");
 
 export default admin;
