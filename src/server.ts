@@ -1,17 +1,19 @@
 import App from "./app";
+import { Application } from "express";
 import mongoose from "mongoose";
 import config from "./common/config";
-import Logger from "./common/logger2";
+import { Logger } from "./common/logger2";
 
 let server: any = null;
 const port = config.server.port || 3000;
-const app = App.getInstance();
+const appInstance = App.getInstance();
+const app: Application = appInstance.getApp();
 const logger = Logger.getInstance();
 
 async function startServer() {
     try {
         // Initialize the application
-        await app.initialize();
+        await appInstance.initialize();
 
         // Configure mongoose
         mongoose.set("debug", process.env.NODE_ENV !== "production");
@@ -35,9 +37,7 @@ async function startServer() {
 function setupGracefulShutdown() {
     // Handle unhandled promise rejections
     process.on("unhandledRejection", (reason, promise) => {
-        logger.error("Unhandled Rejection", new Error(String(reason)), {
-            promise,
-        });
+        logger.error("Unhandled Rejection", new Error(String(reason)));
     });
 
     // Handle uncaught exceptions
@@ -72,11 +72,11 @@ async function gracefulShutdown(exitCode: number) {
         }
 
         // Stop agenda
-        await app.agenda.stop();
+        await appInstance.agenda.stop();
         logger.info("Agenda stopped");
 
         // Close database connection
-        await app.db.close();
+        await appInstance.db.close();
         logger.info("Database connection closed");
 
         // Exit process

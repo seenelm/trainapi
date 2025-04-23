@@ -24,7 +24,7 @@ import { EventResponse } from "./dto/EventResponse";
 import { AlertModel } from "./model/alertModel";
 
 import config from "./common/config";
-import Logger from "./common/logger2";
+import { Logger } from "./common/logger2";
 
 const swaggerJSDoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
@@ -40,7 +40,10 @@ export default class App {
         this.app = express();
         this.db = new MongoDB(config.database.uri);
         this.agenda = new Agenda({
-            db: { address: dbUri, collection: "notificationschedular" },
+            db: {
+                address: config.database.uri,
+                collection: "notificationschedular",
+            },
             processEvery: "30 seconds",
         });
         this.logger = Logger.getInstance();
@@ -58,6 +61,10 @@ export default class App {
         return App.instance;
     }
 
+    public getApp(): Application {
+        return this.app;
+    }
+
     public async initialize(): Promise<void> {
         try {
             await this.db.connect();
@@ -69,8 +76,8 @@ export default class App {
     }
 
     private configureMiddleware(): void {
-        app.use(bodyParser.json());
-        app.use(cors());
+        this.app.use(bodyParser.json());
+        this.app.use(cors());
     }
 
     private configureRoutes(): void {
