@@ -29,6 +29,7 @@ import {
     NotBeforeError,
 } from "jsonwebtoken";
 import { AuthError } from "../../common/errors/AuthError";
+import { FirebaseAuthRequest } from "./dto/userDto";
 
 export interface TokenPayload {
     name: string;
@@ -123,63 +124,118 @@ export default class UserService {
         } catch (error) {}
     }
 
-    public async loginUser(
-        userLoginRequest: UserLoginRequest,
+    // public async loginUser(
+    //     userLoginRequest: UserLoginRequest,
+    // ): Promise<UserResponse> {
+    //     const { username, password } = userLoginRequest;
+    //     const user: User = await this.userRepository.findOne({ username });
+    //     let errors = {};
+
+    //     if (!user) {
+    //         errors = { username: "Incorrect Username or Password" };
+    //         throw new Errors.AuthError(errors, 400);
+    //     }
+
+    //     const validPassword = await BcryptUtil.comparePassword(
+    //         password,
+    //         user.getPassword(),
+    //     ).catch((error) => {
+    //         // this.logger.logError(
+    //         //     `Error validating password for user ${username}`,
+    //         //     error,
+    //         // );
+    //     });
+
+    //     if (!validPassword) {
+    //         errors = { password: "Incorrect Username or Password" };
+    //         throw new Errors.AuthError(errors, 400);
+    //     }
+
+    //     const userProfile = await this.userProfileDAO.findOne({
+    //         userId: user.getId(),
+    //     });
+
+    //     const payload: TokenPayload = {
+    //         name: userProfile.name,
+    //         userId: user.getId(),
+    //     };
+
+    //     const token = await JWTUtil.sign(
+    //         payload,
+    //         process.env.SECRET_CODE,
+    //     ).catch((error) => {
+    //         // this.logger.logError(
+    //         //     `Error signing JWT for user ${username}`,
+    //         //     error,
+    //         // );
+    //     });
+
+    //     // TODO: FIX THIS.
+    //     if (!token) {
+    //         throw new Errors.InternalServerError("Error signing JWT");
+    //     }
+
+    //     // this.logger.logInfo("User logged in", {
+    //     //     username,
+    //     //     userId: user.getId(),
+    //     // });
+
+    //     return this.userRepository.toResponse(user, token, userProfile.name);
+    // }
+
+    public async authenticateWithEmailPassword(
+        decodedToken: DecodedIdToken,
     ): Promise<UserResponse> {
-        const { username, password } = userLoginRequest;
-        const user: User = await this.userRepository.findOne({ username });
-        let errors = {};
+        try {
+            // Extract user information from Firebase token
+            const { uid: firebaseId, email } = decodedToken;
+            const name = email.split("@")[0]; // Default name from email if not provided
 
-        if (!user) {
-            errors = { username: "Incorrect Username or Password" };
-            throw new Errors.AuthError(errors, 400);
+            // Check if user already exists by firebaseId (from previous logins)
+            let user = await this.userRepository.findOne({ firebaseId });
+
+            if (user) {
+                // User exists with this firebaseId, log them in
+                return this.loginExistingFirebaseUser(user, name);
+            }
+
+            // Generate a username (could be email or a random string)
+            const username = email ?? `user_${Date.now()}`;
+
+            // Check if user exists by username/email
+            user = await this.userRepository.findOne({
+                $or: [{ email: email }, { username: username }],
+            });
+
+            if (user) {
+                throw APIError.Conflict(
+                    "Account with this email/username already exists but not linked to this authentication provider",
+                    { email, username },
+                );
+            }
+
+            // if (user) {
+            //     // User exists with this email but not linked to firebase
+            //     // Update the user with firebaseId
+            //     user = await this.userRepository.findOneAndUpdate(
+            //         { email: email },
+            //         { firebaseId: firebaseId, authProvider: "firebase" },
+            //         { new: true },
+            //     );
+
+            //     return this.loginExistingFirebaseUser(user, name);
+            // }
+
+            // Create new user with email/password authentication
+            // const username = email.split("@")[0] || `user_${Date.now()}`;
+            return this.createFirebaseUser(firebaseId, email, username, name);
+        } catch (error) {
+            this.logger.error(
+                "Error during email/password authentication",
+                error,
+            );
+            throw error;
         }
-
-        const validPassword = await BcryptUtil.comparePassword(
-            password,
-            user.getPassword(),
-        ).catch((error) => {
-            // this.logger.logError(
-            //     `Error validating password for user ${username}`,
-            //     error,
-            // );
-        });
-
-        if (!validPassword) {
-            errors = { password: "Incorrect Username or Password" };
-            throw new Errors.AuthError(errors, 400);
-        }
-
-        const userProfile = await this.userProfileDAO.findOne({
-            userId: user.getId(),
-        });
-
-        const payload: TokenPayload = {
-            name: userProfile.name,
-            userId: user.getId(),
-        };
-
-        const token = await JWTUtil.sign(
-            payload,
-            process.env.SECRET_CODE,
-        ).catch((error) => {
-            // this.logger.logError(
-            //     `Error signing JWT for user ${username}`,
-            //     error,
-            // );
-        });
-
-        // TODO: FIX THIS.
-        if (!token) {
-            throw new Errors.InternalServerError("Error signing JWT");
-        }
-
-        // this.logger.logInfo("User logged in", {
-        //     username,
-        //     userId: user.getId(),
-        // });
-
-        return this.userRepository.toResponse(user, token, userProfile.name);
     }
 
     public async authenticateWithGoogle(
@@ -196,7 +252,7 @@ export default class UserService {
 
             if (user) {
                 // User exists, log them in
-                return this.loginExistingGoogleUser(user, name);
+                return this.loginExistingFirebaseUser(user, name);
             }
 
             // Generate a username (could be email or a random string)
@@ -215,13 +271,13 @@ export default class UserService {
             }
 
             // Create a new user with Google authentication
-            return this.createGoogleUser(googleId, email, username, name);
+            return this.createFirebaseUser(googleId, email, username, name);
         } catch (error) {
             throw error;
         }
     }
 
-    private async loginExistingGoogleUser(
+    private async loginExistingFirebaseUser(
         user: User,
         name: string,
     ): Promise<UserResponse> {
@@ -250,7 +306,7 @@ export default class UserService {
         }
     }
 
-    private async createGoogleUser(
+    private async createFirebaseUser(
         googleId: string,
         email: string,
         username: string,

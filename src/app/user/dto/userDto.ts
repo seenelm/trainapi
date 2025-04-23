@@ -16,7 +16,9 @@ export interface UserResponse {
     name: string;
 }
 
-export interface GoogleAuthRequest {
+export interface FirebaseAuthRequest {
     idToken: string;
     name?: string;
+    email?: string;
+    password?: string;
 }

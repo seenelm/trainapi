@@ -5,7 +5,7 @@ import {
     UserLoginRequest,
     UserRegisterRequest,
     UserResponse,
-    GoogleAuthRequest,
+    FirebaseAuthRequest,
 } from "./dto/userDto";
 
 export default class UserController {
@@ -32,12 +32,28 @@ export default class UserController {
         }
     };
 
+    // public login = async (req: Request, res: Response, next: NextFunction) => {
+    //     try {
+    //         const userLoginRequest: UserLoginRequest = req.body;
+
+    //         const userLoginResponse: UserResponse =
+    //             await this.userService.loginUser(userLoginRequest);
+    //         return res.status(201).json(userLoginResponse);
+    //     } catch (error) {
+    //         next(error);
+    //     }
+    // };
+
     public login = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const userLoginRequest: UserLoginRequest = req.body;
+            const firebaseAuthRequest: FirebaseAuthRequest = req.body;
+            const decodedToken = req.firebaseUser;
+            console.log("Decoded Token:", decodedToken);
 
             const userLoginResponse: UserResponse =
-                await this.userService.loginUser(userLoginRequest);
+                await this.userService.authenticateWithEmailPassword(
+                    decodedToken,
+                );
             return res.status(201).json(userLoginResponse);
         } catch (error) {
             next(error);
@@ -46,7 +62,7 @@ export default class UserController {
 
     googleAuth = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { name } = req.body as GoogleAuthRequest;
+            const { name } = req.body as FirebaseAuthRequest;
             const decodedToken = req.firebaseUser;
             console.log("Firebase User:", decodedToken);
 
