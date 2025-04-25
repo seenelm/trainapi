@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import JWTUtil from "../utils/JWTUtil";
+import JWTUtil from "../common/utils/JWTUtil";
 import {
     InternalServerError,
     ResourceNotFoundError,

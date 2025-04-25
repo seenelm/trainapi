@@ -1,4 +1,4 @@
-import TestUtil from "../common/TestUtil";
+import TestUtil from "../fixtures/UserTestFixture";
 
 describe("UserRegisterResponse", () => {
     it("should build a valid UserRegisterResponse", () => {

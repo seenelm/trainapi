@@ -62,10 +62,10 @@ const googleCloudLoggingFormat = format.combine(
 export class Logger {
     private static instance: Logger;
     private logger: winston.Logger;
-    private loggingWinston: LoggingWinston;
+    // private loggingWinston: LoggingWinston;
 
     private constructor() {
-        this.loggingWinston = new LoggingWinston();
+        // this.loggingWinston = new LoggingWinston();
 
         this.logger = winston.createLogger({
             levels: logLevels,
@@ -84,7 +84,7 @@ export class Logger {
                     filename: "logs/combined.log",
                     format: fileFormat,
                 }),
-                this.loggingWinston,
+                // this.loggingWinston,
             ],
         });
     }

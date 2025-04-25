@@ -1,4 +1,4 @@
-import TestUtil from "../common/TestUtil";
+import TestUtil from "../fixtures/UserTestFixture";
 import UserRegisterRequest from "../../src/dto/UserRegisterRequest";
 
 describe("UserRegisterRequest", () => {

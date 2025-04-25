@@ -68,6 +68,46 @@ export default class User {
     public getUpdatedAt(): Date | undefined {
         return this.updatedAt;
     }
+
+    public setId(id: Types.ObjectId): void {
+        this.id = id;
+    }
+
+    public setUsername(username: string): void {
+        this.username = username;
+    }
+
+    public setPassword(password: string): void {
+        this.password = password;
+    }
+
+    public setIsActive(isActive: boolean): void {
+        this.isActive = isActive;
+    }
+
+    public setDeviceToken(deviceToken: string): void {
+        this.deviceToken = deviceToken;
+    }
+
+    public setGoogleId(googleId: string): void {
+        this.googleId = googleId;
+    }
+
+    public setEmail(email: string): void {
+        this.email = email;
+    }
+
+    public setAuthProvider(authProvider: string): void {
+        this.authProvider = authProvider;
+    }
+
+    public setCreatedAt(createdAt: Date): void {
+        this.createdAt = createdAt;
+    }
+
+    public setUpdatedAt(updatedAt: Date): void {
+        this.updatedAt = updatedAt;
+    }
 }
 
 class UserBuilder {

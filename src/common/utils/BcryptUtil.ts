@@ -1,5 +1,5 @@
 import * as bcrypt from "bcrypt";
-import { AuthError } from "../common/errors/AuthError";
+import { AuthError } from "../errors/AuthError";
 
 class BcryptUtil {
     public static async hashPassword(password: string): Promise<string> {

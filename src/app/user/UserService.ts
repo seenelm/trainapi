@@ -1,6 +1,6 @@
 import UserRepository from "../../infrastructure/database/repositories/user/UserRepository";
-import JWTUtil from "../../utils/JWTUtil";
-import BcryptUtil from "../../utils/BcryptUtil";
+import JWTUtil from "../../common/utils/JWTUtil";
+import BcryptUtil from "../../common/utils/BcryptUtil";
 import { UserDocument } from "../../infrastructure/database/models/user/userModel";
 import UserProfileDAO from "../../dao/UserProfileDAO";
 import UserGroupsDAO from "../../dao/UserGroupsDAO";
@@ -243,14 +243,18 @@ export default class UserService {
 
             return this.userRepository.toResponse(newUser, token, name);
         } catch (error) {
-            await session.abortTransaction();
+            if (session) {
+                await session.abortTransaction();
+            }
             throw DatabaseError.handleMongoDBError(error);
         } finally {
-            session.endSession();
+            if (session) {
+                session.endSession();
+            }
         }
     }
 
-    private async generateAuthToken(
+    public async generateAuthToken(
         name: string,
         userId: Types.ObjectId,
     ): Promise<string> {
@@ -266,7 +270,7 @@ export default class UserService {
         }
     }
 
-    private generateUniqueUsername(email: string): string {
+    public generateUniqueUsername(email: string): string {
         const username = email.split("@")[0];
         const uniqueId = uuidv4().split("-")[0]; // Generate a short unique ID
         return `${username}_${uniqueId}`;
