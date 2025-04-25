@@ -6,8 +6,8 @@ export interface UserDocument extends Document {
     isActive: boolean;
     deviceToken?: string;
     googleId?: string;
-    email?: string;
-    authProvider?: string;
+    email: string;
+    authProvider: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -27,6 +27,7 @@ const userSchema: Schema = new Schema(
         },
         deviceToken: {
             type: String,
+            required: false,
         },
         googleId: {
             type: String,
@@ -35,12 +36,14 @@ const userSchema: Schema = new Schema(
         },
         email: {
             type: String,
-            sparse: true,
+            unique: true,
+            required: true,
         },
         authProvider: {
             type: String,
             enum: ["local", "google"],
             default: "local",
+            required: true,
         },
         isActive: {
             type: Boolean,

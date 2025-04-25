@@ -28,7 +28,7 @@ const userController = new UserController(userService);
 
 userRouter.post("/register", validateRegistration, userController.register);
 
-userRouter.post("/login", validateLogin, userController.login);
+userRouter.post("/login", verifyFirebaseToken, userController.login);
 
 userRouter.post("/google-auth", verifyFirebaseToken, userController.googleAuth);
 

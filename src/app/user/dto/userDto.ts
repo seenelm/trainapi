@@ -1,11 +1,11 @@
 export interface UserRegisterRequest {
-    username: string;
+    email: string;
     password: string;
     name: string;
 }
 
 export interface UserLoginRequest {
-    username: string;
+    email: string;
     password: string;
 }
 
@@ -16,9 +16,7 @@ export interface UserResponse {
     name: string;
 }
 
-export interface FirebaseAuthRequest {
+export interface GoogleAuthRequest {
     idToken: string;
     name?: string;
-    email?: string;
-    password?: string;
 }

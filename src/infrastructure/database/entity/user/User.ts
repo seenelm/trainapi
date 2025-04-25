@@ -6,6 +6,9 @@ export default class User {
     private password: string;
     private isActive: boolean;
     private deviceToken?: string;
+    private googleId?: string;
+    private email: string;
+    private authProvider: string;
     private createdAt?: Date;
     private updatedAt?: Date;
 
@@ -15,6 +18,9 @@ export default class User {
         this.password = builder.password;
         this.isActive = builder.isActive;
         this.deviceToken = builder.deviceToken;
+        this.googleId = builder.googleId;
+        this.email = builder.email;
+        this.authProvider = builder.authProvider;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
     }
@@ -43,6 +49,18 @@ export default class User {
         return this.deviceToken;
     }
 
+    public getGoogleId(): string | undefined {
+        return this.googleId;
+    }
+
+    public getEmail(): string {
+        return this.email;
+    }
+
+    public getAuthProvider(): string {
+        return this.authProvider;
+    }
+
     public getCreatedAt(): Date | undefined {
         return this.createdAt;
     }
@@ -58,6 +76,9 @@ class UserBuilder {
     password: string;
     isActive: boolean;
     deviceToken?: string;
+    googleId?: string;
+    email: string;
+    authProvider: string;
     createdAt?: Date;
     updatedAt?: Date;
 
@@ -83,6 +104,21 @@ class UserBuilder {
 
     public setDeviceToken(deviceToken: string): this {
         this.deviceToken = deviceToken;
+        return this;
+    }
+
+    public setGoogleId(googleId: string): this {
+        this.googleId = googleId;
+        return this;
+    }
+
+    public setEmail(email: string): this {
+        this.email = email;
+        return this;
+    }
+
+    public setAuthProvider(authProvider: string): this {
+        this.authProvider = authProvider;
         return this;
     }
 

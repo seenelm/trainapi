@@ -4,6 +4,7 @@ import { IBaseRepository } from "../../interfaces/IBaseRepository";
 import BaseRepository from "../BaseRepository";
 import { Model, Types } from "mongoose";
 import { UserResponse } from "../../../../app/user/dto/userDto";
+import UserRequest from "../../../../app/user/dto/UserRequest";
 
 // import { GroupModel } from "../model/groupModel";
 // import { IUserProfile, UserProfileModel } from "../model/userProfile";
@@ -23,6 +24,24 @@ export default class UserRepository
         this.userModel = userModel;
     }
 
+    toDocument(
+        request: UserRequest,
+        googleId?: string,
+        deviceToken?: string,
+    ): Partial<UserDocument> {
+        if (!request) return null;
+
+        return {
+            username: request.getUsername(),
+            password: request.getPassword(),
+            isActive: request.getIsActive(),
+            deviceToken,
+            googleId,
+            email: request.getEmail(),
+            authProvider: request.getAuthProvider(),
+        };
+    }
+
     toEntity(doc: UserDocument): User {
         if (!doc) return null;
         return User.builder()
@@ -31,6 +50,9 @@ export default class UserRepository
             .setPassword(doc.password)
             .setIsActive(doc.isActive)
             .setDeviceToken(doc.deviceToken)
+            .setGoogleId(doc.googleId)
+            .setEmail(doc.email)
+            .setAuthProvider(doc.authProvider)
             .setCreatedAt(doc.createdAt)
             .setUpdatedAt(doc.updatedAt)
             .build();

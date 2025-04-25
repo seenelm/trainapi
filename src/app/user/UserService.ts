@@ -1,20 +1,14 @@
 import UserRepository from "../../infrastructure/database/repositories/user/UserRepository";
-import * as Errors from "../../utils/errors";
 import JWTUtil from "../../utils/JWTUtil";
 import BcryptUtil from "../../utils/BcryptUtil";
 import { UserDocument } from "../../infrastructure/database/models/user/userModel";
 import UserProfileDAO from "../../dao/UserProfileDAO";
 import UserGroupsDAO from "../../dao/UserGroupsDAO";
 import FollowDAO from "../../dao/FollowDAO";
-import CustomLogger from "../../common/logger";
 import { MongooseError, Types } from "mongoose";
 import User from "../../infrastructure/database/entity/user/User";
 
-import {
-    UserLoginRequest,
-    UserRegisterRequest,
-    UserResponse,
-} from "./dto/userDto";
+import { UserLoginRequest, UserResponse } from "./dto/userDto";
 
 import mongoose from "mongoose";
 import { APIError } from "../../common/errors/APIError";
@@ -23,13 +17,9 @@ import { Logger } from "../../common/logger2";
 import { DecodedIdToken } from "firebase-admin/lib/auth/token-verifier";
 import { MongoServerError } from "mongodb";
 import { DatabaseError } from "../../common/errors/DatabaseError";
-import {
-    JsonWebTokenError,
-    TokenExpiredError,
-    NotBeforeError,
-} from "jsonwebtoken";
 import { AuthError } from "../../common/errors/AuthError";
-import { FirebaseAuthRequest } from "./dto/userDto";
+import { v4 as uuidv4 } from "uuid";
+import UserRequest from "./dto/UserRequest";
 
 export interface TokenPayload {
     name: string;
@@ -56,185 +46,80 @@ export default class UserService {
         this.logger = Logger.getInstance();
     }
 
-    public async registerUser(
-        userRegisterRequest: UserRegisterRequest,
-    ): Promise<UserResponse> {
-        const username = userRegisterRequest.username;
-        const password = userRegisterRequest.password;
-        const name = userRegisterRequest.name;
-        const session = await mongoose.startSession();
-
+    public async registerUser(userRequest: UserRequest): Promise<UserResponse> {
         try {
-            session.startTransaction();
+            const email = userRequest.getEmail();
 
-            const existingUser: User = await this.userRepository.findOne({
-                username,
-            });
-            if (existingUser) {
-                throw APIError.Conflict("username already taken");
-            }
+            const username = this.generateUniqueUsername(
+                userRequest.getEmail(),
+            );
 
-            // Hash password
-            const hash = await BcryptUtil.hashPassword(password);
-
-            const newUser: User = await this.userRepository.create({
-                username,
-                password: hash,
-                isActive: true,
-            });
-
-            await Promise.all([
-                this.userProfileDAO.create(
-                    {
-                        userId: newUser.getId(),
-                        name,
-                        username,
-                    },
-                    { session },
-                ),
-                this.userGroupsDAO.create(
-                    {
-                        userId: newUser.getId(),
-                    },
-                    { session },
-                ),
-                this.followDAO.create(
-                    {
-                        userId: newUser.getId(),
-                    },
-                    { session },
-                ),
-            ]);
-
-            const payload: TokenPayload = {
-                name,
-                userId: newUser.getId(),
-            };
-
-            const token = await JWTUtil.sign(payload, process.env.SECRET_CODE);
-
-            // TODO: FIX THIS.
-            if (!token) {
-                throw APIError.InternalServerError(
-                    "Failed to generate JWT authentication token",
-                );
-            }
-
-            return this.userRepository.toResponse(newUser, token, name);
-        } catch (error) {}
-    }
-
-    // public async loginUser(
-    //     userLoginRequest: UserLoginRequest,
-    // ): Promise<UserResponse> {
-    //     const { username, password } = userLoginRequest;
-    //     const user: User = await this.userRepository.findOne({ username });
-    //     let errors = {};
-
-    //     if (!user) {
-    //         errors = { username: "Incorrect Username or Password" };
-    //         throw new Errors.AuthError(errors, 400);
-    //     }
-
-    //     const validPassword = await BcryptUtil.comparePassword(
-    //         password,
-    //         user.getPassword(),
-    //     ).catch((error) => {
-    //         // this.logger.logError(
-    //         //     `Error validating password for user ${username}`,
-    //         //     error,
-    //         // );
-    //     });
-
-    //     if (!validPassword) {
-    //         errors = { password: "Incorrect Username or Password" };
-    //         throw new Errors.AuthError(errors, 400);
-    //     }
-
-    //     const userProfile = await this.userProfileDAO.findOne({
-    //         userId: user.getId(),
-    //     });
-
-    //     const payload: TokenPayload = {
-    //         name: userProfile.name,
-    //         userId: user.getId(),
-    //     };
-
-    //     const token = await JWTUtil.sign(
-    //         payload,
-    //         process.env.SECRET_CODE,
-    //     ).catch((error) => {
-    //         // this.logger.logError(
-    //         //     `Error signing JWT for user ${username}`,
-    //         //     error,
-    //         // );
-    //     });
-
-    //     // TODO: FIX THIS.
-    //     if (!token) {
-    //         throw new Errors.InternalServerError("Error signing JWT");
-    //     }
-
-    //     // this.logger.logInfo("User logged in", {
-    //     //     username,
-    //     //     userId: user.getId(),
-    //     // });
-
-    //     return this.userRepository.toResponse(user, token, userProfile.name);
-    // }
-
-    public async authenticateWithEmailPassword(
-        decodedToken: DecodedIdToken,
-    ): Promise<UserResponse> {
-        try {
-            // Extract user information from Firebase token
-            const { uid: firebaseId, email } = decodedToken;
-            const name = email.split("@")[0]; // Default name from email if not provided
-
-            // Check if user already exists by firebaseId (from previous logins)
-            let user = await this.userRepository.findOne({ firebaseId });
-
-            if (user) {
-                // User exists with this firebaseId, log them in
-                return this.loginExistingFirebaseUser(user, name);
-            }
-
-            // Generate a username (could be email or a random string)
-            const username = email ?? `user_${Date.now()}`;
-
-            // Check if user exists by username/email
-            user = await this.userRepository.findOne({
-                $or: [{ email: email }, { username: username }],
+            const user = await this.userRepository.findOne({
+                $or: [{ email }, { username }],
             });
 
             if (user) {
                 throw APIError.Conflict(
-                    "Account with this email/username already exists but not linked to this authentication provider",
+                    "Account with this email/username already exists",
                     { email, username },
                 );
             }
 
-            // if (user) {
-            //     // User exists with this email but not linked to firebase
-            //     // Update the user with firebaseId
-            //     user = await this.userRepository.findOneAndUpdate(
-            //         { email: email },
-            //         { firebaseId: firebaseId, authProvider: "firebase" },
-            //         { new: true },
-            //     );
-
-            //     return this.loginExistingFirebaseUser(user, name);
-            // }
-
-            // Create new user with email/password authentication
-            // const username = email.split("@")[0] || `user_${Date.now()}`;
-            return this.createFirebaseUser(firebaseId, email, username, name);
-        } catch (error) {
-            this.logger.error(
-                "Error during email/password authentication",
-                error,
+            const hash = await BcryptUtil.hashPassword(
+                userRequest.getPassword(),
             );
+
+            userRequest.setUsername(username);
+            userRequest.setIsActive(true);
+            userRequest.setPassword(hash);
+
+            const userDocument = this.userRepository.toDocument(userRequest);
+
+            return this.createUser(userDocument, userRequest.getName());
+        } catch (error) {
             throw error;
+        }
+    }
+
+    public async loginUser(
+        userLoginRequest: UserLoginRequest,
+    ): Promise<UserResponse> {
+        const { email, password } = userLoginRequest;
+        try {
+            const user: User = await this.userRepository.findOne({ email });
+
+            if (!user) {
+                throw APIError.NotFound("User not found", { email });
+            }
+
+            await BcryptUtil.comparePassword(password, user.getPassword());
+
+            const userProfile = await this.userProfileDAO.findOne({
+                userId: user.getId(),
+            });
+
+            const token = await this.generateAuthToken(
+                userProfile.name,
+                user.getId(),
+            );
+
+            return this.userRepository.toResponse(
+                user,
+                token,
+                userProfile.name,
+            );
+        } catch (error) {
+            if (
+                error instanceof MongooseError ||
+                error instanceof MongoServerError
+            ) {
+                throw DatabaseError.handleMongoDBError(error);
+            }
+
+            throw APIError.InternalServerError(
+                "An error occurred while logging in",
+                { error },
+            );
         }
     }
 
@@ -243,22 +128,17 @@ export default class UserService {
         providedName?: string,
     ): Promise<UserResponse> {
         try {
-            // Extract user information
             const { uid: googleId, email, name: googleName } = decodedToken;
             const name = providedName || googleName || email.split("@")[0];
 
-            // Check if user already exists by googleId
             let user = await this.userRepository.findOne({ googleId });
 
             if (user) {
-                // User exists, log them in
-                return this.loginExistingFirebaseUser(user, name);
+                return this.loginExistingGoogleUser(user);
             }
 
-            // Generate a username (could be email or a random string)
-            const username = email ?? `user_${Date.now()}`;
+            const username = this.generateUniqueUsername(email);
 
-            // Check if user exists by username/email
             user = await this.userRepository.findOne({
                 $or: [{ email: email }, { username: username }],
             });
@@ -270,17 +150,25 @@ export default class UserService {
                 );
             }
 
-            // Create a new user with Google authentication
-            return this.createFirebaseUser(googleId, email, username, name);
+            const userRequest = UserRequest.builder()
+                .setUsername(username)
+                .setIsActive(true)
+                .setEmail(email)
+                .setAuthProvider("google")
+                .build();
+
+            const userDocument = this.userRepository.toDocument(
+                userRequest,
+                googleId,
+            );
+
+            return this.createUser(userDocument, name);
         } catch (error) {
             throw error;
         }
     }
 
-    private async loginExistingFirebaseUser(
-        user: User,
-        name: string,
-    ): Promise<UserResponse> {
+    private async loginExistingGoogleUser(user: User): Promise<UserResponse> {
         try {
             const userProfile = await this.userProfileDAO.findOne({
                 userId: user.getId(),
@@ -306,10 +194,8 @@ export default class UserService {
         }
     }
 
-    private async createFirebaseUser(
-        googleId: string,
-        email: string,
-        username: string,
+    private async createUser(
+        userDocument: Partial<UserDocument>,
         name: string,
     ): Promise<UserResponse> {
         const session = await mongoose.startSession();
@@ -317,25 +203,16 @@ export default class UserService {
         try {
             session.startTransaction();
 
-            // Create user without password
-            const newUser = await this.userRepository.create(
-                {
-                    username,
-                    googleId,
-                    email,
-                    authProvider: "google",
-                    isActive: true,
-                },
-                { session },
-            );
+            const newUser = await this.userRepository.create(userDocument, {
+                session,
+            });
 
-            // Create related documents
             await Promise.all([
                 this.userProfileDAO.create(
                     {
                         userId: newUser.getId(),
                         name,
-                        username,
+                        username: newUser.getUsername(),
                     },
                     { session },
                 ),
@@ -358,9 +235,10 @@ export default class UserService {
             // Generate JWT token
             const token = await this.generateAuthToken(name, newUser.getId());
 
-            this.logger.info("New user created with Google auth", {
-                username,
+            this.logger.info("New user created", {
+                username: newUser.getUsername(),
                 userId: newUser.getId(),
+                authProvider: newUser.getAuthProvider(),
             });
 
             return this.userRepository.toResponse(newUser, token, name);
@@ -386,6 +264,12 @@ export default class UserService {
             // TODO: throw internal server error if not JWT error
             throw AuthError.handleJWTError(error);
         }
+    }
+
+    private generateUniqueUsername(email: string): string {
+        const username = email.split("@")[0];
+        const uniqueId = uuidv4().split("-")[0]; // Generate a short unique ID
+        return `${username}_${uniqueId}`;
     }
 
     // public async findUserById(userId: Types.ObjectId): Promise<IUser | null> {

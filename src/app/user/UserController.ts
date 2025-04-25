@@ -1,12 +1,11 @@
 import { NextFunction, Request, Response } from "express";
 import UserService from "./UserService";
-import { Types } from "mongoose";
 import {
     UserLoginRequest,
-    UserRegisterRequest,
     UserResponse,
-    FirebaseAuthRequest,
+    GoogleAuthRequest,
 } from "./dto/userDto";
+import UserRequest from "./dto/UserRequest";
 
 export default class UserController {
     private userService: UserService;
@@ -21,40 +20,24 @@ export default class UserController {
         next: NextFunction,
     ) => {
         try {
-            const userRegisterRequest: UserRegisterRequest = req.body;
+            const userRequest: UserRequest = req.body;
 
-            const userRegisterResponse: UserResponse =
-                await this.userService.registerUser(userRegisterRequest);
+            const userResponse: UserResponse =
+                await this.userService.registerUser(userRequest);
 
-            return res.status(201).json(userRegisterResponse);
+            return res.status(201).json(userResponse);
         } catch (error) {
             next(error);
         }
     };
 
-    // public login = async (req: Request, res: Response, next: NextFunction) => {
-    //     try {
-    //         const userLoginRequest: UserLoginRequest = req.body;
-
-    //         const userLoginResponse: UserResponse =
-    //             await this.userService.loginUser(userLoginRequest);
-    //         return res.status(201).json(userLoginResponse);
-    //     } catch (error) {
-    //         next(error);
-    //     }
-    // };
-
     public login = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const firebaseAuthRequest: FirebaseAuthRequest = req.body;
-            const decodedToken = req.firebaseUser;
-            console.log("Decoded Token:", decodedToken);
+            const userLoginRequest: UserLoginRequest = req.body;
 
-            const userLoginResponse: UserResponse =
-                await this.userService.authenticateWithEmailPassword(
-                    decodedToken,
-                );
-            return res.status(201).json(userLoginResponse);
+            const userResponse: UserResponse =
+                await this.userService.loginUser(userLoginRequest);
+            return res.status(201).json(userResponse);
         } catch (error) {
             next(error);
         }
@@ -62,18 +45,15 @@ export default class UserController {
 
     googleAuth = async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const { name } = req.body as FirebaseAuthRequest;
+            const { name } = req.body as GoogleAuthRequest;
             const decodedToken = req.firebaseUser;
-            console.log("Firebase User:", decodedToken);
 
             const userResponse = await this.userService.authenticateWithGoogle(
                 decodedToken,
                 name,
             );
-            console.log("User Response 2:", userResponse);
             return res.status(200).json(userResponse);
         } catch (error) {
-            console.error("Error in Google Auth:", error);
             next(error);
         }
     };
