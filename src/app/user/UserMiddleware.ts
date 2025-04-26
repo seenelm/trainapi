@@ -7,7 +7,7 @@ import { CreateValidator, RuleSet } from "../../common/utils/validation";
 export default class UserMiddleware {
     constructor() {}
 
-    private static registerRules: RuleSet<UserRequest> = {
+    public static registerRules: RuleSet<UserRequest> = {
         email: {
             hasError: (u) => !!u.getEmail(),
             message: ValidateRegisterUser.EmailRequired,

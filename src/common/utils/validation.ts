@@ -5,7 +5,7 @@ interface Rule {
     message: string;
 }
 
-export type RuleSet<Req> = Record<string, Rule>;
+export type RuleSet<Request> = Record<string, Rule>;
 
 export class CreateValidator {
     constructor() {}
