@@ -85,6 +85,7 @@ export default class UserService {
         userLoginRequest: UserLoginRequest,
     ): Promise<UserResponse> {
         const { email, password } = userLoginRequest;
+
         try {
             const user: User = await this.userRepository.findOne({ email });
 
@@ -92,7 +93,17 @@ export default class UserService {
                 throw APIError.NotFound("User not found", { email });
             }
 
-            await BcryptUtil.comparePassword(password, user.getPassword());
+            const isValidPassword = await BcryptUtil.comparePassword(
+                password,
+                user.getPassword(),
+            );
+
+            if (!isValidPassword) {
+                throw AuthError.HashingFailed({
+                    email,
+                    password,
+                });
+            }
 
             const userProfile = await this.userProfileDAO.findOne({
                 userId: user.getId(),
@@ -114,6 +125,10 @@ export default class UserService {
                 error instanceof MongoServerError
             ) {
                 throw DatabaseError.handleMongoDBError(error);
+            } else if (error instanceof AuthError) {
+                throw error;
+            } else if (error instanceof APIError) {
+                throw error;
             }
 
             throw APIError.InternalServerError(
@@ -164,7 +179,22 @@ export default class UserService {
 
             return this.createUser(userDocument, name);
         } catch (error) {
-            throw error;
+            this.logger.error("Error logging in with Google", error);
+            if (
+                error instanceof MongooseError ||
+                error instanceof MongoServerError
+            ) {
+                throw DatabaseError.handleMongoDBError(error);
+            } else if (error instanceof AuthError) {
+                throw error;
+            } else if (error instanceof APIError) {
+                throw error;
+            }
+
+            throw APIError.InternalServerError(
+                "An error occurred while logging in with google",
+                { error },
+            );
         }
     }
 
@@ -173,6 +203,8 @@ export default class UserService {
             const userProfile = await this.userProfileDAO.findOne({
                 userId: user.getId(),
             });
+
+            // TODO: Check if userProfile exists
 
             const token = await this.generateAuthToken(
                 userProfile.name,
@@ -190,7 +222,7 @@ export default class UserService {
                 userProfile.name,
             );
         } catch (error) {
-            throw DatabaseError.handleMongoDBError(error);
+            throw error;
         }
     }
 
@@ -246,7 +278,7 @@ export default class UserService {
             if (session) {
                 await session.abortTransaction();
             }
-            throw DatabaseError.handleMongoDBError(error);
+            throw error;
         } finally {
             if (session) {
                 session.endSession();

@@ -2,7 +2,9 @@ import { Types } from "mongoose";
 import { UserDocument } from "../../src/infrastructure/database/models/user/userModel";
 import User from "../../src/infrastructure/database/entity/user/User";
 import UserRequest from "../../src/app/user/dto/UserRequest";
-import { UserResponse } from "../../src/app/user/dto/userDto";
+import { UserResponse, UserLoginRequest } from "../../src/app/user/dto/userDto";
+import { IUserProfile } from "../../src/model/userProfile";
+import { DecodedIdToken } from "firebase-admin/lib/auth/token-verifier";
 
 export default class UserTestFixture {
     public static ID: Types.ObjectId = new Types.ObjectId();
@@ -34,10 +36,10 @@ export default class UserTestFixture {
 
     public static updateUserDocument(
         updatedData: Partial<UserDocument>,
-    ): Partial<UserDocument> {
+    ): UserDocument {
         const userDocument = this.createUserDocument();
         const updatedUserDocument = { ...userDocument, ...updatedData };
-        return updatedUserDocument;
+        return updatedUserDocument as UserDocument;
     }
 
     public static createUserEntity(): User {
@@ -72,6 +74,16 @@ export default class UserTestFixture {
             .build();
     }
 
+    public static createUserLoginRequest(
+        request?: Partial<UserLoginRequest>,
+    ): UserLoginRequest {
+        return {
+            email: this.EMAIL,
+            password: this.PASSWORD,
+            ...request,
+        };
+    }
+
     public static createUserResponse(): UserResponse {
         return {
             userId: this.USER_ID,
@@ -87,5 +99,31 @@ export default class UserTestFixture {
         const userResponse = this.createUserResponse();
         const updatedUserResponse = { ...userResponse, ...updatedData };
         return updatedUserResponse;
+    }
+
+    public static createUserProfile(
+        updatedData?: Partial<IUserProfile>,
+    ): IUserProfile {
+        return {
+            userId: this.ID,
+            username: this.USERNAME,
+            name: this.NAME,
+            bio: "",
+            accountType: 0,
+            createdAt: this.CREATED_AT,
+            updatedAt: this.UPDATED_AT,
+            ...updatedData,
+        } as IUserProfile;
+    }
+
+    public static createDecodedIdToken(
+        updatedData?: Partial<DecodedIdToken>,
+    ): DecodedIdToken {
+        return {
+            uid: this.GOOGLE_ID,
+            email: this.EMAIL,
+            name: this.NAME,
+            ...updatedData,
+        } as DecodedIdToken;
     }
 }

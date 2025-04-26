@@ -22,3 +22,10 @@ export enum MongoServerErrorType {
     DuplicateKeyError = "DuplicateKeyError",
     MongoServerError = "MongoServerError",
 }
+
+export enum ValidateRegisterUser {
+    PasswordRequired = "Password is required",
+    EmailRequired = "Email is required",
+    NameRequired = "Name is required",
+    EmailAndPasswordRequired = "Email and password are required",
+}

@@ -1,7 +1,10 @@
 import * as bcrypt from "bcrypt";
 import { AuthError } from "../errors/AuthError";
+import { Logger } from "../logger2";
 
 class BcryptUtil {
+    private static logger: Logger = Logger.getInstance();
+
     public static async hashPassword(password: string): Promise<string> {
         try {
             return await bcrypt.hash(password, 12);
@@ -17,7 +20,8 @@ class BcryptUtil {
         try {
             return await bcrypt.compare(password, hashedPassword);
         } catch (error) {
-            throw AuthError.HashingFailed(error);
+            this.logger.error("Error comparing password", error);
+            return false;
         }
     }
 
