@@ -48,17 +48,23 @@ export default class UserService {
 
     public async registerUser(userRequest: UserRequest): Promise<UserResponse> {
         try {
+            console.log("Registering user", userRequest.getEmail());
             const email = userRequest.getEmail();
+            console.log("User email", email);
 
             const username = this.generateUniqueUsername(
                 userRequest.getEmail(),
             );
+            console.log("Generated username", username);
 
             const user = await this.userRepository.findOne({
                 $or: [{ email }, { username }],
             });
 
+            console.log("User found", user);
+
             if (user) {
+                console.log("User already exists", user);
                 throw APIError.Conflict(
                     "Account with this email/username already exists",
                     { email, username },
@@ -68,16 +74,30 @@ export default class UserService {
             const hash = await BcryptUtil.hashPassword(
                 userRequest.getPassword(),
             );
+            console.log("Hashed password", hash);
 
             userRequest.setUsername(username);
             userRequest.setIsActive(true);
             userRequest.setPassword(hash);
+            userRequest.setAuthProvider('local'); // Explicitly set auth provider
 
             const userDocument = this.userRepository.toDocument(userRequest);
+            console.log("User document", userDocument);
 
             return this.createUser(userDocument, userRequest.getName());
         } catch (error) {
-            throw error;
+            this.logger.error("Error in registerUser", error);
+            
+            if (error instanceof MongooseError || error instanceof MongoServerError) {
+                throw DatabaseError.handleMongoDBError(error);
+            } else if (error instanceof APIError) {
+                throw error;
+            }
+            
+            throw APIError.InternalServerError(
+                "An error occurred while registering user",
+                { error }
+            );
         }
     }
 
@@ -303,6 +323,7 @@ export default class UserService {
     }
 
     public generateUniqueUsername(email: string): string {
+        console.log("Generating unique username for email", email);
         const username = email.split("@")[0];
         const uniqueId = uuidv4().split("-")[0]; // Generate a short unique ID
         return `${username}_${uniqueId}`;

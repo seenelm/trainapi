@@ -4,8 +4,8 @@
     "description": "",
     "main": "app.js",
     "scripts": {
-        "start": "NODE_ENV=dev nodemon ./dist/server.js",
-        "start:test": "NODE_ENV=test nodemon ./dist/server.js",
+        "start": "NODE_ENV=dev nodemon ./dist/src/server.js",
+        "start:test": "NODE_ENV=test nodemon ./dist/src/server.js",
         "build:dev": "NODE_ENV=dev tsc",
         "build:test": "NODE_ENV=test tsc",
         "build": "tsc",

@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction, RequestHandler } from "express";
 
-interface Rule {
+interface Rule<Req> {
     hasError: (req: Req) => boolean;
     message: string;
 }
 
-export type RuleSet<Request> = Record<string, Rule>;
+export type RuleSet<Request> = Record<string, Rule<Request>>;
 
 export class CreateValidator {
     constructor() {}

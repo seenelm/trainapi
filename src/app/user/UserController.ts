@@ -6,9 +6,11 @@ import {
     GoogleAuthRequest,
 } from "./dto/userDto";
 import UserRequest from "./dto/UserRequest";
+import { Logger } from "../../common/logger2";
 
 export default class UserController {
     private userService: UserService;
+    private logger: Logger = Logger.getInstance();
 
     constructor(userService: UserService) {
         this.userService = userService;
@@ -20,10 +22,18 @@ export default class UserController {
         next: NextFunction,
     ) => {
         try {
-            const userRequest: UserRequest = req.body;
+            const {email, password, name} = req.body;
+            
+            const userRequest = UserRequest.builder()
+            .setEmail(email)
+            .setPassword(password)
+            .setName(name)
+            .build();
 
             const userResponse: UserResponse =
                 await this.userService.registerUser(userRequest);
+
+            this.logger.info("Register User", userResponse);
 
             return res.status(201).json(userResponse);
         } catch (error) {

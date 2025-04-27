@@ -7,18 +7,18 @@ import { CreateValidator, RuleSet } from "../../common/utils/validation";
 export default class UserMiddleware {
     constructor() {}
 
-    public static registerRules: RuleSet<UserRequest> = {
+    public static registerRules: RuleSet<any> = {
         email: {
-            hasError: (u) => !!u.getEmail(),
-            message: ValidateRegisterUser.EmailRequired,
+            hasError: (u) => !!u.email,
+            message: "Email is required",
         },
         password: {
-            hasError: (u) => !!u.getPassword(),
-            message: ValidateRegisterUser.PasswordRequired,
+            hasError: (u) => !!u.password,
+            message: "Password is required",
         },
         name: {
-            hasError: (u) => !!u.getName(),
-            message: ValidateRegisterUser.NameRequired,
+            hasError: (u) => !!u.name,
+            message: "Name is required",
         },
     };
 
@@ -28,9 +28,10 @@ export default class UserMiddleware {
         next: NextFunction,
     ) => {
         const userRequest: UserRequest = req.body;
+        console.log("User Request: ", userRequest);
         const errors = CreateValidator.validate(
             userRequest,
-            this.registerRules,
+            UserMiddleware.registerRules,
         );
 
         if (errors && errors.length > 0) {

@@ -4,7 +4,7 @@ export default class UserRequest {
     private password?: string;
     private isActive?: boolean;
     private email: string;
-    private authProvider: string;
+    private authProvider?: string;
 
     constructor(builder: UserRequestBuilder) {
         this.username = builder.username;
@@ -39,7 +39,7 @@ export default class UserRequest {
         return this.email;
     }
 
-    public getAuthProvider(): string {
+    public getAuthProvider(): string | undefined {
         return this.authProvider;
     }
 
@@ -74,7 +74,7 @@ class UserRequestBuilder {
     password?: string;
     isActive?: boolean;
     email: string;
-    authProvider: string;
+    authProvider?: string;
 
     public setUsername(username: string): this {
         this.username = username;

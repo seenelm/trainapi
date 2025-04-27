@@ -16,6 +16,7 @@ import { UserGroupsModel } from "../../model/userGroups";
 import { FollowModel } from "../../model/followModel";
 import UserController from "./UserController";
 import { verifyFirebaseToken } from "../../common/middleware/verifyFirebaseToken";
+import UserMiddleware from "./UserMiddleware";
 
 const userService = new UserService(
     new UserRepository(UserModel),
@@ -26,7 +27,9 @@ const userService = new UserService(
 
 const userController = new UserController(userService);
 
-userRouter.post("/register", validateRegistration, userController.register);
+const userMiddleware = new UserMiddleware();
+
+userRouter.post("/register", userMiddleware.validateRegisterUser, userController.register);
 
 userRouter.post("/login", validateLogin, userController.login);
 
