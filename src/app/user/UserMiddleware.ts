@@ -30,7 +30,7 @@ export default class UserMiddleware {
         const userRequest: UserRequest = req.body;
         const errors = CreateValidator.validate(
             userRequest,
-            this.registerRules,
+            UserMiddleware.registerRules,
         );
 
         if (errors && errors.length > 0) {

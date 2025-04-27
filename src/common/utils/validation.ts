@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction, RequestHandler } from "express";
 
-interface Rule {
-    hasError: (req: Req) => boolean;
+interface Rule<T> {
+    hasError: (req: T) => boolean;
     message: string;
 }
 
-export type RuleSet<Request> = Record<string, Rule>;
+export type RuleSet<T> = Record<string, Rule<T>>;
 
 export class CreateValidator {
     constructor() {}
@@ -20,7 +20,7 @@ export class CreateValidator {
      *
      */
 
-    public static validate<Req>(req: Req, rules: RuleSet<Req>): string[] {
+    public static validate<T>(req: T, rules: RuleSet<T>): string[] {
         const errors = Object.values(rules)
             .filter((rule) => !rule.hasError(req))
             .map((rule) => rule.message);
